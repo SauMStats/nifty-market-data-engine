@@ -23,7 +23,7 @@ You need:
   • Python 3.8 or higher
   • The pandas library   → install with:  pip install pandas
   • Access to the shared Google Drive dataset folder
-  • The marketdatav2.py file (provided by Data Pipeline Team)
+  • The marketdatav3.py file (provided by Data Pipeline Team)
 
 ─────────────────────────────────────────────────────────────────────────────
 STEP 2 — SET UP THE FILE
@@ -33,7 +33,7 @@ Place the file like this in your project:
     your_project/
         api/
             __init__.py       ← create this file (it can be completely empty)
-            marketdatav2.py   ← copy this file here
+            marketdatav3.py   ← copy this file here
         your_analysis.ipynb   ← your notebook
 
 To create __init__.py: just create a new empty text file and name it __init__.py
@@ -45,7 +45,7 @@ STEP 3 — CONNECT TO THE ENGINE
 ─────────────────────────────────────────────────────────────────────────────
 At the top of your notebook or script:
 
-    from api.marketdatav2 import NiftyMarketData
+    from api.marketdatav3 import NiftyMarketData
 
     BASE_DIR = r"G:\path\to\shared\drive\NiftyHistorical"
     md = NiftyMarketData(base_dir=BASE_DIR)
@@ -272,7 +272,7 @@ TROUBLESHOOTING
   Problem: Module not found
   ──────────────────────────
   → Check that api/__init__.py exists (even if empty).
-  → Make sure marketdatav2.py is inside the api/ folder.
+  → Make sure marketdatav3.py is inside the api/ folder.
   → Make sure you are running your notebook from your project root folder.
 
 ─────────────────────────────────────────────────────────────────────────────

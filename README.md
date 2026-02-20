@@ -25,20 +25,20 @@ Python 3.8+ required.
 
 ### 2. Place the module
 
-Copy `marketdatav2.py` into your project's `api/` folder:
+Copy `marketdatav3.py` into your project's `api/` folder:
 
 ```
 your_project/
     api/
         __init__.py       ← create this (can be empty)
-        marketdatav2.py   ← the engine
+        marketdatav3.py   ← the engine
     your_notebook.ipynb
 ```
 
 ### 3. Import and initialise
 
 ```python
-from api.marketdatav2 import NiftyMarketData
+from api.marketdatav3 import NiftyMarketData
 
 BASE_DIR = r"G:/SharedDrive/NiftyHistorical"   # path to shared dataset root
 md = NiftyMarketData(base_dir=BASE_DIR)
