@@ -1,0 +1,289 @@
+================================================================================
+NIFTY MARKET DATA ENGINE — QUICK START GUIDE FOR OTHER TEAMS
+================================================================================
+Version 3.0 | Data Pipeline Team | January 2026
+================================================================================
+
+WHAT IS THIS?
+─────────────
+This is a Python API that gives you clean, ready-to-use NIFTY 50 options data.
+You do not need to open any CSV files, find file paths, or merge anything manually.
+You write one line of Python and get back a table (DataFrame) with everything you need.
+
+The engine handles:
+  • Loading the right file from disk
+  • Cleaning and standardising the schema
+  • Merging in the spot price automatically
+  • Filtering by strike, option type, time, and volume
+
+─────────────────────────────────────────────────────────────────────────────
+STEP 1 — REQUIREMENTS
+─────────────────────────────────────────────────────────────────────────────
+You need:
+  • Python 3.8 or higher
+  • The pandas library   → install with:  pip install pandas
+  • Access to the shared Google Drive dataset folder
+  • The marketdatav2.py file (provided by Data Pipeline Team)
+
+─────────────────────────────────────────────────────────────────────────────
+STEP 2 — SET UP THE FILE
+─────────────────────────────────────────────────────────────────────────────
+Place the file like this in your project:
+
+    your_project/
+        api/
+            __init__.py       ← create this file (it can be completely empty)
+            marketdatav2.py   ← copy this file here
+        your_analysis.ipynb   ← your notebook
+
+To create __init__.py: just create a new empty text file and name it __init__.py
+It can have zero contents inside. Its only job is to tell Python that "api" is
+a module folder.
+
+─────────────────────────────────────────────────────────────────────────────
+STEP 3 — CONNECT TO THE ENGINE
+─────────────────────────────────────────────────────────────────────────────
+At the top of your notebook or script:
+
+    from api.marketdatav2 import NiftyMarketData
+
+    BASE_DIR = r"G:\path\to\shared\drive\NiftyHistorical"
+    md = NiftyMarketData(base_dir=BASE_DIR)
+
+Replace BASE_DIR with the actual path to the shared drive on your computer.
+You can get this path from the Data Pipeline Team if unsure.
+
+─────────────────────────────────────────────────────────────────────────────
+STEP 4 — DATE FORMAT RULES (READ THIS CAREFULLY)
+─────────────────────────────────────────────────────────────────────────────
+Dates for expiry and trade_date use this format:  DDMMMYY
+
+    Examples:
+      "01JAN24"   → 1st January 2024
+      "15MAR25"   → 15th March 2025
+      "01FEB24"   → 1st February 2024
+
+    Month abbreviations: JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC
+
+Timestamps for start/end/timestamp use this format:  YYYY-MM-DD HH:MM
+
+    Examples:
+      "2024-01-01 09:30"   → 9:30 AM on 1 Jan 2024
+      "2024-01-01 10:00"   → 10:00 AM
+      "2024-01-01 15:30"   → 3:30 PM (market close)
+
+If you use the wrong format, the engine will tell you what it expected.
+
+─────────────────────────────────────────────────────────────────────────────
+STEP 5 — QUERIES YOU CAN RUN
+─────────────────────────────────────────────────────────────────────────────
+
+━━━ A. DISCOVER WHAT DATA EXISTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # What expiries were traded on a given date?
+  expiries = md.list_expiries("01JAN24")
+
+  # What strikes exist for a given expiry and date?
+  strikes = md.list_strikes("01FEB24", "01JAN24")
+
+  # What trading days had data in a given month?
+  days = md.list_trading_days(2024, "JAN")
+
+  Run these FIRST if you are unsure what data is available.
+
+━━━ B. BASIC OPTION CHAIN QUERY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # All options for one expiry on one trade date
+  df = md.query_options(
+      expiry="01FEB24",
+      trade_date="01JAN24"
+  )
+
+  This gives you ALL strikes, ALL option types (Calls and Puts), ALL timestamps
+  for that day. Spot price is merged automatically.
+
+━━━ C. FILTERED QUERIES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Specific strikes only
+  df = md.query_options(
+      expiry="01FEB24",
+      trade_date="01JAN24",
+      strikes=[21500, 21700, 21900]
+  )
+
+  # Calls only
+  df = md.query_options(
+      expiry="01FEB24",
+      trade_date="01JAN24",
+      option_type="C"          # "C" for Call, "P" for Put
+  )
+
+  # Puts only
+  df = md.query_options(
+      expiry="01FEB24",
+      trade_date="01JAN24",
+      option_type="P"
+  )
+
+  # Intraday time window
+  df = md.query_options(
+      expiry="01FEB24",
+      trade_date="01JAN24",
+      start="2024-01-01 10:00",
+      end="2024-01-01 11:00"
+  )
+
+  # Liquid contracts only (recommended for IV calculation)
+  df = md.query_options(
+      expiry="01FEB24",
+      trade_date="01JAN24",
+      min_volume=10            # exclude rows with volume < 10
+  )
+
+  # All filters combined
+  df = md.query_options(
+      expiry="01FEB24",
+      trade_date="01JAN24",
+      strikes=[21500, 21600, 21700, 21800],
+      option_type="C",
+      start="2024-01-01 10:00",
+      end="2024-01-01 12:00",
+      min_volume=5
+  )
+
+━━━ D. ATM STRIKE GRID ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Generate strikes around ATM automatically
+  atm, grid = md.get_atm_strikes(
+      expiry="01FEB24",
+      trade_date="01JAN24",
+      n_strikes=10,            # how many strikes each side of ATM
+      step=100                 # distance between strikes
+  )
+  print(atm)    # e.g. 21700
+  print(grid)   # [21200, 21300, 21400, ..., 22200]
+
+  ATM = round(opening spot price / step) × step
+
+━━━ E. VOLATILITY SURFACE SNAPSHOT (TEAM 2B PRIMARY USE CASE) ━━━━━━━━━━━━━
+
+  surface = md.surface_snapshot(
+      trade_date="01JAN24",
+      timestamp="2024-01-01 10:00",    # single moment in time
+      n_expiries=8,                    # up to 8 expiries
+      n_strikes=10,                    # strikes each side of ATM
+      step=100,
+      option_type="C",                 # "C", "P", or None for both
+      min_volume=0
+  )
+
+  The result contains a full (expiry × strike) grid at that one timestamp.
+  Use it directly in Black-Scholes:
+
+      S     = surface["spot_price"]
+      K     = surface["strike"]
+      T     = surface["days_to_expiry"] / 365.0
+      C_mkt = surface["market_price"]
+
+━━━ F. MULTI-DAY TIME SERIES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Track one option across multiple trade dates
+  df_ts = md.query_time_series(
+      expiry="01FEB24",
+      trade_dates=["01JAN24", "02JAN24", "03JAN24"],
+      strikes=[21700],
+      option_type="C",
+      snapshot_time="10:00"     # fixed time on each day
+  )
+
+─────────────────────────────────────────────────────────────────────────────
+STEP 6 — COLUMNS IN THE OUTPUT
+─────────────────────────────────────────────────────────────────────────────
+Every query returns a DataFrame with these columns:
+
+    timestamp        Date and time of the row
+    expiry_date      Option expiry date
+    days_to_expiry   Calendar days until expiry (from trade date)
+    strike           Strike price (integer)
+    option_type      "C" (Call) or "P" (Put)
+    open_price       Opening price of that 1-minute bar
+    high_price       High price
+    low_price        Low price
+    close_price      Closing price
+    market_price     Same as close_price — use this as the option price
+    volume           Number of contracts traded in that minute
+    open_interest    Open interest at that point
+    spot_price       NIFTY 50 spot index price (merged automatically)
+
+For time series queries, a "trade_date" column is also added.
+
+─────────────────────────────────────────────────────────────────────────────
+STEP 7 — IMPORTANT NOTES
+─────────────────────────────────────────────────────────────────────────────
+
+  1. NO BID/ASK DATA
+     The dataset does not have bid or ask quotes. market_price = close_price.
+     This is a known limitation. Plan accordingly in IV models.
+
+  2. ZERO VOLUME ROWS
+     A large portion of rows have volume=0. These are "stale" price quotes
+     where no trade occurred in that minute. For implied volatility, use
+     min_volume=10 or higher to filter them out.
+
+  3. TRADING HOURS
+     NIFTY trades 09:15 to 15:30 IST. Do not set time windows outside this.
+
+  4. SPOT PRICE MATCHING
+     Spot prices are matched using nearest-minute timestamps. The match
+     is very close but not exact to the millisecond.
+
+  5. DATE FORMAT IS CRITICAL
+     expiry and trade_date must be DDMMMYY, not any other format.
+     start/end/timestamp must be YYYY-MM-DD HH:MM.
+     Wrong formats will raise a clear error message explaining what is needed.
+
+  6. MULTI-YEAR SUPPORT
+     2024, 2025, and 2026 data are all supported. The engine automatically
+     determines which year folder to look in based on the trade_date you provide.
+
+─────────────────────────────────────────────────────────────────────────────
+TROUBLESHOOTING
+─────────────────────────────────────────────────────────────────────────────
+
+  Problem: "FileNotAvailable" error
+  ──────────────────────────────────
+  The file for that expiry/date does not exist.
+  → Run md.list_expiries("01JAN24") to see what IS available on that date.
+  → Confirm the shared drive is mounted and accessible.
+  → Contact the Data Pipeline Team.
+
+  Problem: Query returns empty DataFrame
+  ───────────────────────────────────────
+  Your filters are too restrictive.
+  → Lower or remove the min_volume filter.
+  → Check available strikes: md.list_strikes("01FEB24", "01JAN24")
+  → Widen the time window.
+  → Make sure the strike you want actually exists on that date.
+
+  Problem: "InvalidParameter" on dates
+  ──────────────────────────────────────
+  Date is in wrong format. Must be DDMMMYY, e.g. "01FEB24" not "2024-02-01".
+
+  Problem: Module not found
+  ──────────────────────────
+  → Check that api/__init__.py exists (even if empty).
+  → Make sure marketdatav2.py is inside the api/ folder.
+  → Make sure you are running your notebook from your project root folder.
+
+─────────────────────────────────────────────────────────────────────────────
+CONTACT
+─────────────────────────────────────────────────────────────────────────────
+For questions, missing data, or bugs:
+  → Data Pipeline Team
+
+Do NOT modify the raw CSV files or the folder structure. The engine depends
+on the naming conventions being exact.
+
+================================================================================
+End of Guide
+================================================================================

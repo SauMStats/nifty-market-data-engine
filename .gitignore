@@ -1,0 +1,55 @@
+# ─── Raw Dataset Files (never push to GitHub) ─────────────────────────────────
+*.csv
+*.xlsx
+*.xls
+*.parquet
+*.feather
+*.h5
+*.hdf5
+
+# ─── Jupyter Notebook Checkpoints ─────────────────────────────────────────────
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# ─── Python Cache ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# ─── Virtual Environments ─────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ─── IDE and OS Files ─────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── LaTeX Build Artifacts ────────────────────────────────────────────────────
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# ─── Credentials / Secrets ────────────────────────────────────────────────────
+.env
+*.key
+secrets.py
+
+# ─── Temporary / Output Files ─────────────────────────────────────────────────
+*.tmp
+*.bak
+output/
+temp/
+
+# ─── Google Drive Shortcut Files ──────────────────────────────────────────────
+*.lnk
+.shortcut-targets-by-id/

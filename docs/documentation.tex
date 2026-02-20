@@ -1,0 +1,607 @@
+\documentclass[12pt,a4paper]{article}
+
+% ─── Packages ────────────────────────────────────────────────────────────────
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{mdframed}
+
+% ─── Colour palette ──────────────────────────────────────────────────────────
+\definecolor{codeblue}{HTML}{1E3A5F}
+\definecolor{codegray}{HTML}{F4F6F8}
+\definecolor{codered}{HTML}{C0392B}
+\definecolor{codegreen}{HTML}{1A7340}
+\definecolor{accent}{HTML}{2471A3}
+\definecolor{warnyellow}{HTML}{F39C12}
+
+% ─── Listings (code blocks) ───────────────────────────────────────────────────
+\lstdefinestyle{python}{
+    language=Python,
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codeblue}\bfseries,
+    stringstyle=\color{codegreen},
+    commentstyle=\color{gray}\itshape,
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    stepnumber=1,
+    numbersep=8pt,
+    frame=single,
+    framerule=0.4pt,
+    rulecolor=\color{gray!40},
+    breaklines=true,
+    breakatwhitespace=true,
+    showstringspaces=false,
+    tabsize=4,
+    xleftmargin=1.5em,
+}
+\lstset{style=python}
+
+% ─── Info box ─────────────────────────────────────────────────────────────────
+\newmdenv[
+  backgroundcolor=codegray,
+  linecolor=accent,
+  linewidth=1.5pt,
+  leftmargin=0pt,
+  rightmargin=0pt,
+  innerleftmargin=10pt,
+  innerrightmargin=10pt,
+  innertopmargin=8pt,
+  innerbottommargin=8pt,
+]{infobox}
+
+% ─── Warning box ──────────────────────────────────────────────────────────────
+\newmdenv[
+  backgroundcolor=yellow!10,
+  linecolor=warnyellow,
+  linewidth=1.5pt,
+  leftmargin=0pt,
+  rightmargin=0pt,
+  innerleftmargin=10pt,
+  innerrightmargin=10pt,
+  innertopmargin=8pt,
+  innerbottommargin=8pt,
+]{warnbox}
+
+% ─── Header / Footer ─────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\small\textcolor{gray}{NIFTY Market Data Engine v3.0}}
+\lhead{\small\textcolor{gray}{Data Pipeline Team}}
+\rfoot{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ─── Section formatting ───────────────────────────────────────────────────────
+\titleformat{\section}{\large\bfseries\color{codeblue}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries\color{accent}}{}{0em}{}
+
+% ─── Hyperlink setup ─────────────────────────────────────────────────────────
+\hypersetup{
+    colorlinks=true,
+    linkcolor=accent,
+    urlcolor=accent,
+    citecolor=accent
+}
+
+% ─── Column types ─────────────────────────────────────────────────────────────
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+% ─── Title page ───────────────────────────────────────────────────────────────
+\begin{titlepage}
+\centering
+\vspace*{3cm}
+
+{\Huge\bfseries\color{codeblue} NIFTY Market Data Engine}\\[0.5em]
+{\LARGE\color{accent} API Documentation}\\[0.3em]
+{\large Version 3.0}
+
+\vspace{2cm}
+\rule{\linewidth}{1pt}
+\vspace{0.5cm}
+
+{\large\bfseries Data Pipeline Team}\\[0.3em]
+{\large Mathematical Finance Group Project}
+
+\vspace{0.5cm}
+\rule{\linewidth}{1pt}
+
+\vspace{2cm}
+{\large January 2026}
+
+\vfill
+
+\begin{infobox}
+\textbf{Purpose.} This document is the complete technical reference for the
+\texttt{NiftyMarketData} Python class. It is intended for all teams that
+consume options market data: Pricing (Team~2b), Hedging, and Volatility
+Surface. Data producers on the Data Pipeline Team should also consult this
+document to ensure new datasets follow the required schema.
+\end{infobox}
+
+\end{titlepage}
+
+% ─── Table of contents ────────────────────────────────────────────────────────
+\tableofcontents
+\newpage
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Overview}
+% ──────────────────────────────────────────────────────────────────────────────
+
+The NIFTY Market Data Engine provides a clean, professional query interface
+over historical NIFTY~50 European options data. Raw data is stored as thousands
+of CSV files across monthly folders on a shared Google Drive. This engine
+abstracts that entirely: downstream teams write a single Python query and
+receive a fully standardised, spot-merged \texttt{pandas} DataFrame.
+
+\subsection{Why This Engine is Needed}
+
+Pricing, Hedging, and Volatility Surface teams require market data as direct
+input to:
+
+\begin{itemize}[noitemsep]
+    \item Black--Scholes theoretical pricing
+    \item Implied volatility computation $\sigma(K,T)$
+    \item Greeks computation: $\Delta,\,\Gamma,\,\mathcal{V},\,\Theta$
+    \item Volatility surface construction $\sigma(K,T)$
+\end{itemize}
+
+Without this engine, each team would need to locate files manually, handle
+timestamp reconstruction, and merge spot data themselves --- a slow,
+error-prone process. The engine encapsulates all of that.
+
+\subsection{Multi-Year Support}
+
+Version~3.0 extends the engine to support multiple calendar years
+(2024, 2025, 2026 and beyond). The correct year folder is determined
+automatically from the trade date in each query.
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Dataset Structure}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\subsection{Folder Layout}
+
+All data resides under a single root directory (\texttt{base\_dir}), which is
+the shared Google Drive folder. The internal structure must follow this layout
+exactly:
+
+\begin{lstlisting}[language={}, numbers=none, basicstyle=\ttfamily\small, backgroundcolor=\color{codegray}, frame=single, rulecolor=\color{gray!40}]
+base_dir/
+    2024/
+        2024JAN/          <- option CSV files for January 2024
+        2024FEB/
+        ...
+        2024DEC/
+        2024Nifty/        <- spot index CSV files
+    2025/
+        2025JAN/
+        ...
+        2025Nifty/
+    2026/
+        ...
+\end{lstlisting}
+
+\subsection{Option File Naming Convention}
+
+Each option file follows the pattern:
+
+\[
+\texttt{NIFTY-\{EXPIRY\}-\{TRADEDATE\}.csv}
+\]
+
+Example: \texttt{NIFTY-01FEB24-01JAN24.csv}
+
+\begin{center}
+\begin{tabular}{@{}L{3.5cm} L{9cm}@{}}
+\toprule
+\textbf{Component} & \textbf{Description} \\
+\midrule
+\texttt{EXPIRY}    & Expiry date in \texttt{DDMMMYY} format, e.g.\ \texttt{01FEB24} \\
+\texttt{TRADEDATE} & The date trading occurred, e.g.\ \texttt{01JAN24} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Raw File Columns}
+
+Each option CSV contains intraday one-minute OHLC bars:
+
+\begin{center}
+\begin{tabular}{@{}L{3.5cm} L{9cm}@{}}
+\toprule
+\textbf{Column} & \textbf{Description} \\
+\midrule
+\texttt{datetime}       & Intraday time (HH:MM:SS) \\
+\texttt{strike\_price}  & Strike price (integer) \\
+\texttt{right}          & Option type: \texttt{CE} (Call) or \texttt{PE} (Put) \\
+\texttt{open}           & Opening price of 1-minute bar \\
+\texttt{high}           & High price \\
+\texttt{low}            & Low price \\
+\texttt{close}          & Closing price \\
+\texttt{volume}         & Contracts traded in this minute \\
+\texttt{open\_interest} & Open interest \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Spot File Naming Convention}
+
+\[
+\texttt{Nifty-\{YEAR\}\{MONTH\}.csv}
+\]
+
+Example: \texttt{Nifty-2024JAN.csv}
+
+Spot files contain columns \texttt{datetime} and \texttt{close}, where
+\texttt{close} is the NIFTY~50 spot index level.
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Key Assumptions}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{warnbox}
+All consumers of this API must be aware of the following assumptions that
+affect data quality and pricing calculations.
+\end{warnbox}
+
+\begin{enumerate}
+    \item \textbf{No Bid/Ask Data.} This dataset does not contain bid or ask
+    quotes. Option market price is proxied by the close price of each
+    one-minute bar:
+    \[
+    P_{\text{market}} = P_{\text{close}}
+    \]
+
+    \item \textbf{Zero-Volume Rows.} A large fraction of rows have
+    \texttt{volume}~=~0. These represent stale quotes where no trade occurred
+    in that minute. For implied volatility calculations, apply
+    \texttt{min\_volume~$\geq$~10} to ensure only actively traded contracts
+    are used.
+
+    \item \textbf{Spot Price Matching.} Spot prices are merged using
+    nearest-timestamp matching (one-minute resolution):
+    \[
+    S_t \approx S_{\hat{t}}, \quad \hat{t} = \arg\min_{\tau} |t - \tau|
+    \]
+
+    \item \textbf{Trading Hours.} NIFTY trades from 09:15 to 15:30~IST.
+    Time window queries outside these hours will return empty results.
+
+    \item \textbf{European Options.} All NIFTY index options are European-style.
+    This is assumed in all downstream pricing models.
+\end{enumerate}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Installation and Setup}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\subsection{Requirements}
+
+\begin{lstlisting}
+pip install pandas
+\end{lstlisting}
+
+Python 3.8 or higher is required.
+
+\subsection{File Layout}
+
+Place the engine file inside an \texttt{api/} folder at your project root:
+
+\begin{lstlisting}[language={}, numbers=none, basicstyle=\ttfamily\small, backgroundcolor=\color{codegray}, frame=single, rulecolor=\color{gray!40}]
+your_project/
+    api/
+        __init__.py       <- empty file, required
+        marketdatav2.py   <- the engine
+    your_notebook.ipynb
+\end{lstlisting}
+
+The \texttt{\_\_init\_\_.py} file may be empty; it is required to make
+\texttt{api} a Python package.
+
+\subsection{Import and Initialise}
+
+\begin{lstlisting}
+from api.marketdatav2 import NiftyMarketData
+
+BASE_DIR = r"G:/SharedDrive/NiftyHistorical"
+md = NiftyMarketData(base_dir=BASE_DIR)
+\end{lstlisting}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Date Format Reference}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{center}
+\begin{tabular}{@{}L{4cm} L{4cm} L{5.5cm}@{}}
+\toprule
+\textbf{Parameter} & \textbf{Format} & \textbf{Examples} \\
+\midrule
+\texttt{expiry} & \texttt{DDMMMYY} & \texttt{01FEB24}, \texttt{27MAR25} \\
+\texttt{trade\_date} & \texttt{DDMMMYY} & \texttt{01JAN24}, \texttt{15JAN25} \\
+\texttt{start}, \texttt{end} & \texttt{YYYY-MM-DD HH:MM} & \texttt{2024-01-01 10:00} \\
+\texttt{timestamp} & \texttt{YYYY-MM-DD HH:MM} & \texttt{2024-01-01 10:00} \\
+\texttt{snapshot\_time} & \texttt{HH:MM} & \texttt{10:00}, \texttt{09:30} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Complete API Reference}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\subsection{\texttt{query\_options()} --- Core Query}
+
+The primary method for all option data access. All filters are optional;
+omitting them returns the full unfiltered dataset for that expiry and date.
+
+\begin{lstlisting}
+df = md.query_options(
+    expiry="01FEB24",          # required
+    trade_date="01JAN24",      # required
+    strikes=[21500, 21700],    # optional: list of int
+    option_type="C",           # optional: "C" or "P"
+    start="2024-01-01 10:00",  # optional
+    end="2024-01-01 11:00",    # optional
+    min_volume=10,             # optional: int >= 0
+    raise_if_empty=False       # optional: bool
+)
+\end{lstlisting}
+
+\textbf{Output columns:}
+
+\begin{center}
+\begin{tabular}{@{}L{4cm} L{8.5cm}@{}}
+\toprule
+\textbf{Column} & \textbf{Description} \\
+\midrule
+\texttt{timestamp}       & Full datetime of the record \\
+\texttt{expiry\_date}    & Expiry date (Python \texttt{date} object) \\
+\texttt{days\_to\_expiry}& Calendar days until expiry from trade date \\
+\texttt{strike}          & Strike price (integer) \\
+\texttt{option\_type}    & \texttt{"C"} (Call) or \texttt{"P"} (Put) \\
+\texttt{open\_price}     & Open price of the 1-minute bar \\
+\texttt{high\_price}     & High price \\
+\texttt{low\_price}      & Low price \\
+\texttt{close\_price}    & Close price \\
+\texttt{market\_price}   & Pricing proxy $= P_{\text{close}}$ \\
+\texttt{volume}          & Contracts traded in that minute \\
+\texttt{open\_interest}  & Open interest \\
+\texttt{spot\_price}     & NIFTY~50 spot level (auto-merged) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{\texttt{list\_expiries()} --- Discovery}
+
+\begin{lstlisting}
+expiries = md.list_expiries(trade_date="01JAN24")
+# Returns: ['01FEB24', '04JAN24', '11JAN24', '25JAN24', ...]
+\end{lstlisting}
+
+Returns all expiry files that exist on disk for the given trade date.
+Use before \texttt{query\_options()} to confirm an expiry is available.
+
+\subsection{\texttt{list\_strikes()} --- Discovery}
+
+\begin{lstlisting}
+strikes = md.list_strikes(expiry="01FEB24", trade_date="01JAN24")
+# Returns: [19850, 20000, 21000, 21100, ..., 23500]
+\end{lstlisting}
+
+Returns all strike prices that appear in a given expiry/date file.
+
+\subsection{\texttt{list\_trading\_days()} --- Discovery}
+
+\begin{lstlisting}
+days = md.list_trading_days(year=2024, month="JAN")
+# Returns: ['01JAN24', '02JAN24', '03JAN24', ...]
+\end{lstlisting}
+
+Returns all trading days for which option files exist in a given month.
+
+\subsection{\texttt{get\_atm\_strikes()} --- ATM Grid}
+
+Generates a symmetric grid of strikes centred on the at-the-money level.
+
+\[
+K_{\text{ATM}} = \left\lfloor \frac{S_0}{\Delta} \right\rceil \cdot \Delta
+\]
+
+where $S_0$ is the opening spot price and $\Delta$ is the step size.
+
+\begin{lstlisting}
+atm, grid = md.get_atm_strikes(
+    expiry="01FEB24",
+    trade_date="01JAN24",
+    n_strikes=10,   # strikes each side of ATM
+    step=100        # spacing between strikes
+)
+print(atm)    # 21700
+print(grid)   # [21200, 21300, ..., 21700, ..., 22200]
+\end{lstlisting}
+
+Total grid size = $2 \times \texttt{n\_strikes} + 1$.
+
+\subsection{\texttt{surface\_snapshot()} --- Volatility Surface}
+
+The primary deliverable for Team~2b. Constructs the complete
+$(K,\,T)$ input grid required for implied volatility surface fitting at a
+single point in time.
+
+\begin{lstlisting}
+surface = md.surface_snapshot(
+    trade_date="01JAN24",
+    timestamp="2024-01-01 10:00",
+    n_expiries=8,       # max expiries to include
+    n_strikes=10,       # strikes each side of ATM per expiry
+    step=100,
+    option_type="C",    # "C", "P", or None
+    min_volume=0
+)
+\end{lstlisting}
+
+\textbf{Use for Black--Scholes IV fitting:}
+
+\begin{lstlisting}
+S     = surface["spot_price"]
+K     = surface["strike"]
+T     = surface["days_to_expiry"] / 365.0   # years
+C_mkt = surface["market_price"]
+
+# Solve: C_BS(S, K, T, r, sigma) = C_mkt  for sigma
+\end{lstlisting}
+
+\subsection{\texttt{query\_time\_series()} --- Multi-Day Evolution}
+
+Queries the same expiry across multiple trade dates. Useful for studying
+time decay and rolling IV across a trading week or month.
+
+\begin{lstlisting}
+df_ts = md.query_time_series(
+    expiry="01FEB24",
+    trade_dates=["01JAN24", "02JAN24", "03JAN24"],
+    strikes=[21700],
+    option_type="C",
+    snapshot_time="10:00",   # optional: fix the intraday time
+    min_volume=0
+)
+\end{lstlisting}
+
+The output contains an additional \texttt{trade\_date} column prepended.
+
+\subsection{\texttt{clear\_spot\_cache()} and \texttt{cache\_status()}}
+
+\begin{lstlisting}
+# Inspect what is currently cached
+print(md.cache_status())
+# {'2024JAN': 375, '2024FEB': 391}
+
+# Clear cache (free memory or after dataset update)
+md.clear_spot_cache()
+\end{lstlisting}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Error Handling}
+% ──────────────────────────────────────────────────────────────────────────────
+
+The engine raises typed exceptions with descriptive messages:
+
+\begin{center}
+\begin{tabular}{@{}L{4.5cm} L{8cm}@{}}
+\toprule
+\textbf{Exception} & \textbf{When Raised} \\
+\midrule
+\texttt{FileNotAvailable}  & Required CSV file not found on disk \\
+\texttt{NoDataReturned}    & Query matched 0 rows (\texttt{raise\_if\_empty=True}) \\
+\texttt{InvalidParameter}  & Bad value for \texttt{option\_type}, dates, or \texttt{strikes} \\
+\texttt{MarketDataError}   & Base class; all engine errors inherit from this \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Example:
+
+\begin{lstlisting}
+from api.marketdatav2 import FileNotAvailable, InvalidParameter, NoDataReturned
+
+try:
+    df = md.query_options(expiry="01FEB24", trade_date="01JAN24",
+                          min_volume=999999, raise_if_empty=True)
+except NoDataReturned as e:
+    print(e)   # prints actionable guidance
+\end{lstlisting}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Typical Workflow: Pricing Team}
+% ──────────────────────────────────────────────────────────────────────────────
+
+The following is the recommended end-to-end workflow for Team~2b:
+
+\begin{lstlisting}
+from api.marketdatav2 import NiftyMarketData
+
+md = NiftyMarketData(base_dir=BASE_DIR)
+
+# Step 1 — Confirm available expiries
+expiries = md.list_expiries("01JAN24")
+
+# Step 2 — Get surface snapshot
+surface = md.surface_snapshot(
+    trade_date="01JAN24",
+    timestamp="2024-01-01 10:00",
+    n_expiries=8,
+    n_strikes=10,
+    option_type="C",
+    min_volume=0
+)
+
+# Step 3 — Extract inputs
+S     = surface["spot_price"].values
+K     = surface["strike"].values
+T     = surface["days_to_expiry"].values / 365.0
+C_mkt = surface["market_price"].values
+
+# Step 4 — Implied volatility solve
+# sigma = your_iv_solver(S, K, T, r, C_mkt, "C")
+\end{lstlisting}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Summary of All Methods}
+% ──────────────────────────────────────────────────────────────────────────────
+
+\begin{center}
+\begin{tabular}{@{}L{5cm} L{8.5cm}@{}}
+\toprule
+\textbf{Method} & \textbf{Purpose} \\
+\midrule
+\texttt{query\_options(...)}         & Core data access with all filters \\
+\texttt{list\_expiries(trade\_date)} & Discover expiries on a date \\
+\texttt{list\_strikes(expiry, date)} & Discover strikes in a file \\
+\texttt{list\_trading\_days(y, m)}   & Discover trading days in a month \\
+\texttt{get\_atm\_strikes(...)}      & Build ATM-centred strike grid \\
+\texttt{query\_time\_series(...)}    & Multi-day evolution query \\
+\texttt{surface\_snapshot(...)}      & Full vol-surface input grid \\
+\texttt{clear\_spot\_cache()}        & Free memory / reset cache \\
+\texttt{cache\_status()}             & Inspect cached months \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ──────────────────────────────────────────────────────────────────────────────
+\section{Contact and Maintenance}
+% ──────────────────────────────────────────────────────────────────────────────
+
+This engine is maintained by the \textbf{Data Pipeline Team}. For the following
+situations, contact the Data Pipeline Team rather than modifying files directly:
+
+\begin{itemize}[noitemsep]
+    \item A \texttt{FileNotAvailable} error for a date that should have data.
+    \item New data for 2025 or 2026 not yet loaded.
+    \item Schema changes in the raw CSV format.
+    \item Questions about risk-free rate or dividend yield integration.
+\end{itemize}
+
+\textbf{Do not modify the raw CSV files or folder structure.} The engine
+depends on the naming conventions being exact.
+
+\vspace{1em}
+\hrule
+\vspace{0.5em}
+{\small Data Pipeline Team $\cdot$ Mathematical Finance Group Project $\cdot$
+Version 3.0 $\cdot$ January 2026}
+
+\end{document}
